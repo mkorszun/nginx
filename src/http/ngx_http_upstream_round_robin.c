@@ -32,7 +32,7 @@ ngx_http_upstream_init_round_robin(ngx_conf_t *cf,
     ngx_http_upstream_server_t    *server;
     ngx_http_upstream_rr_peers_t  *peers, *backup;
 
-    us->peer.init = ngx_http_upstream_init_round_robin_peer;
+    us->peer.init = ngx_http_upstream_init_round_robin_peer_redis;
 
     if (us->servers) {
         server = us->servers->elts;
@@ -203,6 +203,29 @@ ngx_http_upstream_init_round_robin(ngx_conf_t *cf,
     /* implicitly defined upstream has no backup servers */
 
     return NGX_OK;
+}
+
+
+ngx_int_t
+ngx_http_upstream_init_round_robin_peer_redis(ngx_http_request_t *r,
+    ngx_http_upstream_srv_conf_t *us)
+{
+
+    // Read static configuration from file
+    ngx_connection_t *c;
+    c = r->connection;
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "===>>>Read static configuartion."); 
+    ngx_int_t res = ngx_http_upstream_init_round_robin_peer(r, us);
+
+    if (res == NGX_OK){
+        ngx_http_upstream_rr_peers_t *static_peers = ((ngx_http_upstream_rr_peer_data_t *)r->upstream->peer.data)->peers;
+        ngx_uint_t n = static_peers->number;
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, c->log, 0, "===>>>Static configuration loaded: %d. Set dynamic configuration.", n);
+        return NGX_OK;
+    } else{
+	ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0, "===>>>Failed to load static configuration.");
+        return res;
+    }
 }
 
 
